@@ -11,7 +11,7 @@ export default class Header extends PureComponent {
     fetch(`${configs.API_DOMAIN}/api/title`)
       .then((res) => res.json())
       .then((data) => {
-        this.setState({ title: data });
+        this.setState({ title: data?.title });
       });
   }
 
