@@ -1,0 +1,46 @@
+name: Production Build
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [16.x]
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v1
+      with:
+        node-version: ${{ matrix.node-version }}
+    - name: Yarn Install
+      run: |
+        yarn install
+    - name: Production Build
+      env:
+       PRODUCTION_DOT_ENV: ${{ secrets.PRODUCTION_DOT_ENV }} # .env
+      run: |
+        echo "$PRODUCTION_DOT_ENV" > .env
+        yarn build
+    - name: Deploy to S3
+      uses: jakejarvis/s3-sync-action@master
+      with:
+        args: --acl private --exclude '.git/*' --follow-symlinks --delete
+      env:
+        AWS_S3_BUCKET: ${{ secrets.AWS_S3_PRODUCTION_BUCKET }} # bucket name
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: "us-east-1"
+        SOURCE_DIR: "build"
+    - name: Invalidate CloudFront
+      uses: chetan/invalidate-cloudfront-action@v2
+      env:
+        DISTRIBUTION: ${{ secrets.PRODUCTION_DISTRIBUTION }} # distribution ID
+        PATHS: "/index.html"
+        AWS_REGION: "us-east-1"
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
